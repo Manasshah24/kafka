@@ -1,0 +1,47 @@
+Frontend API for Tsunami Test:
+
+When you select the Tsunami test from the frontend, the API sends a test configuration (test_config) to the Kafka topic (topic_test_config) that includes test_id, test_type, and test_delay.
+Trigger from Orchestrator:
+
+The orchestrator also sends a trigger to the driver nodes through the trigger topic (topic_trigger) after receiving the tsunami API call.
+Driver Node Consumes Test Config and Trigger:
+
+The driver nodes are consuming messages from the Kafka topics topic_test_config and topic_trigger.
+Driver Checks Config:
+
+The driver node processes the test_config, matching the parameters like test_type (in this case, "TSUNAMI") and delay.
+Run Tsunami Test Logic:
+
+Since it’s a tsunami test, the driver runs the code for the Tsunami test, which sends repeated GET requests to the target server.
+Setting Up Driver Node (Command Arguments):
+
+When you run the driver node using python3 driver.py kafka_ip orchestrator_ip target_ip, the driver stores these command-line arguments to send metrics and heartbeats to the correct Kafka broker and orchestrator.
+Driver Node Initialization:
+
+The driver node assigns itself an ID. The Kafka producer and consumer are initialized; the producer is connected to port 9092 (Kafka broker), and the consumer subscribes to topic_test_config and topic_trigger. store_test is initialized to track metrics.
+Tsunami Test Execution:
+
+In the Tsunami test, a for loop runs to send requests to the specified target URL, collecting metrics (latency, success, failure, etc.), and updates store_test with this data.
+Heartbeat Thread Running in Background:
+
+Simultaneously, another thread in the driver node is sending heartbeats at regular intervals to the orchestrator through the heartbeat topic.
+Back to Orchestrator Node:
+
+The orchestrator is managing the entire process and communicating with driver nodes.
+Register Driver Node:
+
+When a driver node starts (python3 driver.py ...), it registers itself with the orchestrator by sending its information (like ID and IP) to the orchestrator, which updates the list of active nodes.
+Heartbeat Function in Orchestrator:
+
+The orchestrator receives heartbeats from driver nodes, indicating they are still active and online.
+Update Metrics:
+
+The orchestrator listens to the topic_metrics and updates its internal metrics store for each test, tracking data like request times, success, and failure rates.
+Orchestrator Threads in Background:
+
+Two key threads run in parallel on the orchestrator node:
+Kafka Consumer Thread: Consumes messages from topics related to heartbeat, metrics, and driver registration.
+Driver Status Update Thread: Checks for driver nodes that haven’t sent a heartbeat in a specified time interval (e.g., 5 seconds) and marks those nodes as "DOWN."
+Summary:
+Your explanation was correct. The key sequence involves drivers consuming test_config and trigger, running the appropriate test (Tsunami), sending metrics, and heartbeats while the orchestrator manages these processes through Kafka topics and background threads.
+Let me know if you'd like to go deeper into any specific part!

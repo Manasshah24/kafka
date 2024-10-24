@@ -1,0 +1,71 @@
+Key Components:
+Kafka Topics:
+
+Several Kafka topics are defined for communication between the orchestrator and the driver nodes:
+TOPIC_REGISTER: Used to register the driver node with the orchestrator.
+TOPIC_TEST_CONFIG: Receives test configurations from the orchestrator.
+TOPIC_TRIGGER: Receives a signal from the orchestrator to start a specific test.
+TOPIC_METRICS: Used to send test results (latencies and metrics) from the driver to the orchestrator.
+TOPIC_HEARTBEAT: Used by the driver to send periodic heartbeat signals to the orchestrator to indicate it is active.
+Global Variables:
+
+KAFKA_IP, ORCHESTRATOR_IP, TARGET_URL: These are the command-line arguments passed to the driver, indicating the Kafka broker’s IP, orchestrator IP, and the URL to be tested.
+DRIVER_ID: A unique identifier for each driver node based on its hostname and process ID.
+tests: A global dictionary that stores the test configurations (from TOPIC_TEST_CONFIG) that are received from the orchestrator.
+Kafka Producer and Consumer:
+
+Producer: Sends data to Kafka topics. This includes the registration message, test metrics, and heartbeat signals.
+Consumer: Listens for messages from Kafka on specific topics, such as TOPIC_TEST_CONFIG (for test configurations) and TOPIC_TRIGGER (to start tests).
+Functionality Overview:
+store_test(test):
+
+Stores the received test configuration in the global tests dictionary. The key is test_id, and the value is the test configuration (test type, message count, delay, etc.).
+tsunami_test(test):
+
+Runs the Tsunami test.
+Sends a specified number of HTTP requests to the TARGET_URL and records the time taken for each request.
+Tracks min, max, mean, and median latencies during the test and sends the metrics back to the orchestrator via TOPIC_METRICS.
+avalanche_test(test):
+
+Runs the Avalanche test. The implementation is similar to the tsunami test, with the key difference being the test type.
+It also sends HTTP requests, collects latencies, and sends the results back to the orchestrator.
+trigger_test(test_id):
+
+Executes the appropriate test (either Tsunami or Avalanche) based on the test configuration received and stored in store_test.
+It calls tsunami_test() or avalanche_test() depending on the test_type.
+heartbeat():
+
+Sends a heartbeat message to the orchestrator at regular intervals (every 3 seconds). This is used to indicate that the driver node is alive and functioning.
+The message includes the driver's unique ID and a timestamp.
+kafka_consume_messages():
+
+This function is responsible for continuously consuming messages from Kafka.
+It listens to two topics:
+TOPIC_TEST_CONFIG: When a test configuration message is received, it is stored using store_test.
+TOPIC_TRIGGER: When a trigger message is received, it initiates the corresponding test by calling trigger_test.
+Main Script Execution:
+
+When the script is run, it first registers the driver node with the orchestrator by sending a message to TOPIC_REGISTER.
+It then starts two threads:
+Thread 1: Runs the heartbeat() function to periodically send heartbeat signals to the orchestrator.
+Thread 2: Runs kafka_consume_messages() to listen for incoming Kafka messages (test configurations and triggers).
+Flow of Execution:
+Driver Registration:
+
+The driver node sends a registration message to the orchestrator via Kafka, identifying itself and providing its IP address.
+Receiving Test Configurations:
+
+The driver node listens on TOPIC_TEST_CONFIG for test configurations sent by the orchestrator. These configurations are stored locally in the tests dictionary.
+Starting the Test:
+
+When the driver node receives a trigger message (via TOPIC_TRIGGER), it initiates the appropriate test (either Tsunami or Avalanche), based on the stored configuration.
+Executing the Test:
+
+The driver node sends HTTP requests to the TARGET_URL and measures the response times (latencies).
+After each request, it calculates the mean, median, min, and max latencies and sends this data back to the orchestrator via TOPIC_METRICS.
+Heartbeat Signal:
+
+While the tests are running (or even when idle), the driver node continuously sends heartbeat signals to the orchestrator, ensuring the orchestrator knows that the node is still active.
+Test Cleanup:
+
+After the test is completed, the driver removes the test configuration from its local storage (i.e., from the tests dictionary).
